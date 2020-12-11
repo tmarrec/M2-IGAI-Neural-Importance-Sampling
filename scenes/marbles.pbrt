@@ -1,0 +1,93 @@
+Camera "perspective" "float fov" 32
+
+Film "image"
+    "integer xresolution" 960
+    "integer yresolution" 540
+    "string filename" "marbles.exr"
+
+PixelFilter "triangle"
+    "float xwidth" 1
+    "float ywidth" 1
+
+Integrator "volpathadaptive"
+    "string mode" "normal"
+    "integer batchsize" 8
+    "integer targetseconds" 30
+    "float errorthreshold" 0.01
+    "string errorheuristic" "relative"
+    "integer minsamples" 16
+
+Sampler "halton" "integer pixelsamples" 32
+
+
+WorldBegin
+
+LookAt 0 2 -6
+       0 1 -4
+       0 1 0
+
+AttributeBegin
+    Scale 20 20 20
+    Rotate 45 0 1 0
+    Texture "Checker" "color" "checkerboard"
+        "rgb tex1" [0.4 0.4 0.4]
+        "rgb tex2" [1 1 1]
+    Material "matte" "texture Kd" "Checker"
+    Shape "trianglemesh"
+        "integer indices" [0 1 2 0 2 3]
+        "point P" [-0.5 0 -0.5 -0.5 0 0.5 0.5 0 0.5 0.5 0 -0.5]
+        "normal N" [0 1 0 0 1 0 0 1 0 0 1 0]
+        "float uv" [0 0 50 0 50 50 0 50]
+AttributeEnd
+
+AttributeBegin
+    Translate 1 1.2 -3
+    Rotate 90 0 0 1
+    Rotate 45 1 0 0
+    Rotate 40 0 0 1
+    Scale 0.5 0.5 0.5
+    Material "none"
+    AreaLightSource "diffuse" "rgb L" [7 4 0]
+    Shape "trianglemesh"
+        "integer indices" [0 1 2 0 2 3]
+        "point P" [-0.5 0 -0.5 -0.5 0 0.5 0.5 0 0.5 0.5 0 -0.5]
+        "normal N" [0 1 0 0 1 0 0 1 0 0 1 0]
+AttributeEnd
+
+AttributeBegin
+    Translate -1 1.2 -3
+    Rotate -90 0 0 1
+    Rotate 45 1 0 0
+    Rotate -45 0 0 1
+    Scale 0.1 0.1 0.1
+    Material "none"
+    AreaLightSource "diffuse" "rgb L" [0 90 190]
+    Shape "trianglemesh"
+        "integer indices" [0 1 2 0 2 3]
+        "point P" [-0.5 0 -0.5 -0.5 0 0.5 0.5 0 0.5 0.5 0 -0.5]
+        "normal N" [0 1 0 0 1 0 0 1 0 0 1 0]
+AttributeEnd
+
+AttributeBegin
+    Translate 0 0.5 -1.8
+    Material "mirror" "rgb Kr" [0.8 0.8 0.8]
+    Shape "sphere" "float radius" 0.5
+AttributeEnd
+
+AttributeBegin
+    Translate -0.8 0.3 -3
+    Material "glass" "rgb Kt" [0.3 0.8 0.2]
+    Shape "sphere" "float radius" 0.3
+AttributeEnd
+
+AttributeBegin
+    Translate 1 0.2 -2.5
+    Material "plastic"
+        "rgb Kd" [0.7 0.1 0.2]
+        "rgb Ks" [0.7 0.1 0.2]
+        "float roughness" 0.004
+    Shape "sphere" "float radius" 0.2
+AttributeEnd
+
+
+WorldEnd
