@@ -86,7 +86,6 @@
 #include "materials/uber.h"
 #include "samplers/halton.h"
 #include "samplers/maxmin.h"
-#include "samplers/pssps.h"
 #include "samplers/random.h"
 #include "samplers/sobol.h"
 #include "samplers/stratified.h"
@@ -833,8 +832,6 @@ std::shared_ptr<Sampler> MakeSampler(const std::string &name,
         sampler = CreateRandomSampler(paramSet);
     else if (name == "stratified")
         sampler = CreateStratifiedSampler(paramSet);
-    else if (name == "pssps")
-        sampler = CreatePSSPSSampler(paramSet);
     else
         Warning("Sampler \"%s\" unknown.", name.c_str());
     paramSet.ReportUnused();
