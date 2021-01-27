@@ -63,6 +63,7 @@
 #include "integrators/adaptive.h"
 #include "integrators/PSSPG-Guoetal-2018/psspg.h"
 #include "integrators/PracticalPathGuiding/sdguided.h"
+#include "integrators/pssps.h"
 #include "lights/diffuse.h"
 #include "lights/distant.h"
 #include "lights/goniometric.h"
@@ -1703,6 +1704,8 @@ Integrator *RenderOptions::MakeIntegrator() const {
         integrator = CreatePSSGPTIntegrator( IntegratorParams, sampler, camera);
     } else if (IntegratorName == "ppg") {
         integrator = CreatePPGIntegrator( IntegratorParams, sampler, camera);
+	} else if (IntegratorName == "pssps") {
+		integrator = CreatePSSPSIntegrator(IntegratorParams, sampler, camera);
     } else {
         Error("Integrator \"%s\" unknown.", IntegratorName.c_str());
         return nullptr;

@@ -9,7 +9,7 @@ PixelFilter "triangle"
     "float xwidth" 1
     "float ywidth" 1
 
-Integrator "volpathadaptive"
+Integrator "pssps"
     "string mode" "normal"
     "integer batchsize" 8
     "integer targetseconds" 30
