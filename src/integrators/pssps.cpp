@@ -57,7 +57,9 @@ PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
     : SamplerIntegrator(camera, sampler, pixelBounds),
       maxDepth(maxDepth),
       rrThreshold(rrThreshold),
-      lightSampleStrategy(lightSampleStrategy) {}
+      lightSampleStrategy(lightSampleStrategy),
+	  sampler(std::move(sampler)),
+      pixelBounds(pixelBounds)	  {}
 
 void PSSPSIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 	std::cout << "Launching Neural Network..." << std::endl;
