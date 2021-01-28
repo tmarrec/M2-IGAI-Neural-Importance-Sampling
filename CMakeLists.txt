@@ -468,6 +468,7 @@ FILE ( GLOB PBRT_SOURCE
 INCLUDE_DIRECTORIES ( src )
 INCLUDE_DIRECTORIES ( src/core )
 ADD_SUBDIRECTORY ( extern/pybind11 )
+INCLUDE_DIRECTORIES ( ${pybind11_INCLUDE_DIRS} )
 
 # Visual Studio source folders
 SOURCE_GROUP (core REGULAR_EXPRESSION src/core/.*)
