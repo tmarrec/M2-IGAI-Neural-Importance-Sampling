@@ -467,6 +467,7 @@ FILE ( GLOB PBRT_SOURCE
 
 INCLUDE_DIRECTORIES ( src )
 INCLUDE_DIRECTORIES ( src/core )
+ADD_SUBDIRECTORY ( extern/pybind11 )
 
 # Visual Studio source folders
 SOURCE_GROUP (core REGULAR_EXPRESSION src/core/.*)
@@ -518,6 +519,7 @@ SET(ALL_PBRT_LIBS
   glog
   Ptex_static
   ${ZLIB_LIBRARY}
+  pybind11::embed
 )
 
 # Main renderer
@@ -527,6 +529,7 @@ ADD_SANITIZERS ( pbrt_exe )
 SET_TARGET_PROPERTIES ( pbrt_exe PROPERTIES OUTPUT_NAME pbrt )
 TARGET_COMPILE_FEATURES ( pbrt_exe PRIVATE ${PBRT_CXX11_FEATURES} )
 TARGET_LINK_LIBRARIES ( pbrt_exe ${ALL_PBRT_LIBS} )
+TARGET_INCLUDE_DIRECTORIES ( pbrt_exe PUBLIC ${pybind11_INCLUDE_DIRS} )
 
 # Tools
 ADD_EXECUTABLE ( bsdftest src/tools/bsdftest.cpp )
