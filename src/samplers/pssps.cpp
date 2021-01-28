@@ -39,7 +39,10 @@
 
 namespace pbrt {
 
-PSSPSSampler::PSSPSSampler(int ns, int seed) : Sampler(ns), rng(seed) {}
+PSSPSSampler::PSSPSSampler(int ns, int seed) : Sampler(ns), rng(seed)
+{
+	nice.get();
+}
 
 Float PSSPSSampler::Get1D() {
     ProfilePhase _(Prof::GetSample);

@@ -38,6 +38,7 @@
 #include "parallel.h"
 #include <glog/logging.h>
 
+
 using namespace pbrt;
 
 static void usage(const char *msg = nullptr) {

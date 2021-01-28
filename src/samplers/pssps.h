@@ -41,6 +41,7 @@
 // samplers/pssps.h*
 #include "sampler.h"
 #include "rng.h"
+#include "samplers/NICE.h"
 
 namespace pbrt {
 
@@ -54,6 +55,7 @@ class PSSPSSampler : public Sampler {
 
   private:
     RNG rng;
+	NICE nice {};
 };
 
 Sampler *CreatePSSPSSampler(const ParamSet &params);

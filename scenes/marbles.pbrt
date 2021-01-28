@@ -17,7 +17,7 @@ Integrator "pssps"
     "string errorheuristic" "relative"
     "integer minsamples" 16
 
-Sampler "halton" "integer pixelsamples" 32
+Sampler "pssps" "integer pixelsamples" 32
 
 
 WorldBegin
