@@ -64,7 +64,17 @@ PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
 void PSSPSIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 	std::cout << "Launching Neural Network..." << std::endl;
 	// Lancement du réseau de neurones
-	sleep(3);
+
+	nice.get();
+	nice.send();
+	nice.get();
+	nice.send();
+
+	nice.get();
+	nice.send();
+	nice.get();
+	nice.send();
+
 	std::cout << "Neural Network Launched!" << std::endl;
     lightDistribution =
         CreateLightSampleDistribution(lightSampleStrategy, scene);
@@ -72,7 +82,7 @@ void PSSPSIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 
 void PSSPSIntegrator::Render(const Scene &scene) {
 	Preprocess(scene, *sampler);
-	
+
 	// Render image tiles in parallel
 
     // Compute number of tiles, _nTiles_, to use for parallel rendering
@@ -81,6 +91,9 @@ void PSSPSIntegrator::Render(const Scene &scene) {
     const int tileSize = 16;
     Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
                    (sampleExtent.y + tileSize - 1) / tileSize);
+
+
+
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
     {
         ParallelFor2D([&](Point2i tile) {

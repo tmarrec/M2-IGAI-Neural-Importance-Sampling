@@ -41,6 +41,9 @@
 // core/api.h*
 #include "pbrt.h"
 
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
+
 namespace pbrt {
 
 // API Function Declarations

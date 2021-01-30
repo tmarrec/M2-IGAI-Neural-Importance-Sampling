@@ -42,6 +42,10 @@
 #include "pbrt.h"
 #include "integrator.h"
 #include "lightdistrib.h"
+#include "../samplers/NICE.h"
+
+#include <pybind11/pybind11.h>
+#include <pybind11/embed.h>
 
 namespace pbrt {
 
@@ -66,6 +70,7 @@ class PSSPSIntegrator : public SamplerIntegrator {
     std::unique_ptr<LightDistribution> lightDistribution;
 	std::shared_ptr<Sampler> sampler;
     const Bounds2i pixelBounds;
+	NICE nice;
 };
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,

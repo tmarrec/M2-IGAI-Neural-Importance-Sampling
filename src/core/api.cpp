@@ -1595,6 +1595,8 @@ void pbrtObjectInstance(const std::string &name) {
 }
 
 void pbrtWorldEnd() {
+	pybind11::scoped_interpreter guard{};
+
     VERIFY_WORLD("WorldEnd");
     // Ensure there are no pushed graphics states
     while (pushedGraphicsStates.size()) {
@@ -1606,6 +1608,9 @@ void pbrtWorldEnd() {
         Warning("Missing end to pbrtTransformBegin()");
         pushedTransforms.pop_back();
     }
+
+
+
 
     // Create scene and render
     if (PbrtOptions.cat || PbrtOptions.toPly) {

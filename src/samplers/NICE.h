@@ -8,18 +8,23 @@ class NICE
 public:
 	NICE()
 	{
+		pybind11::exec(R"(
+			a = 0
+		)");
 	}
 
 	void get()
 	{
-		py::scoped_interpreter interp;
-		std::cout << "Je demande a NICE un truc en python" << std::endl;
-		py::print("Bonjour je suis le python");
+		pybind11::exec(R"(
+			print(a)
+		)");
 	}
 
 	void send()
 	{
-
+		pybind11::exec(R"(
+			a = a + 1
+		)");
 	}
 
 private:
