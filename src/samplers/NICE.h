@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
+#include <pybind11/stl.h>
 
 namespace py = pybind11;
 
@@ -17,8 +18,11 @@ public:
 		_NICE_class = _module.attr("NiceDummy").call(2, 2);
 	}
 
-	void send()
+	void learn(d2D paths, d1D probas)
 	{
+		auto paths_np = py::array_t<double>(py::cast(paths));
+		auto probas_np = py::array_t<double>(py::cast(probas));
+		_NICE_class.attr("learn").call(paths_np, probas_np);
 	}
 
 	std::tuple<d2D, d1D> get_paths(unsigned int num_path)

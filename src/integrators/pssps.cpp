@@ -63,9 +63,9 @@ PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
 
 void PSSPSIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 	std::cout << "Launching Neural Network..." << std::endl;
-	// Lancement du réseau de neurones
 
-	nice.get_paths(3);
+	auto res = nice.get_paths(3);
+	nice.learn(std::get<0>(res), std::get<1>(res));
 
 	std::cout << "Neural Network Launched!" << std::endl;
     lightDistribution =

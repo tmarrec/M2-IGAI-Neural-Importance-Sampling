@@ -15,10 +15,16 @@ class NiceDummy :
         if len(proba) != paths.shape[0] :
             print("Paths and probas not matching")
 
+        print("Everything seems ok")
+        print(paths)
+        print(proba)
+
     def generate_paths(self, num_path):
         print("generate_paths")
         paths = np.random.uniform(size=(num_path, 2*self.path_length))
         probas = np.ones((num_path))
+        print(paths)
+        print(probas)
 
         return paths, probas
 
