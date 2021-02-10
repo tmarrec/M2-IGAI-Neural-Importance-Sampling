@@ -65,15 +65,7 @@ void PSSPSIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
 	std::cout << "Launching Neural Network..." << std::endl;
 	// Lancement du réseau de neurones
 
-	nice.get();
-	nice.send();
-	nice.get();
-	nice.send();
-
-	nice.get();
-	nice.send();
-	nice.get();
-	nice.send();
+	nice.get_paths(3);
 
 	std::cout << "Neural Network Launched!" << std::endl;
     lightDistribution =

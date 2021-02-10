@@ -6,3 +6,5 @@ src/objs
 .idea/
 cmake-*/
 build/
+*__pycache__/
+*.pyc
