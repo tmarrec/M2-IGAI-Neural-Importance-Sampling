@@ -18,17 +18,23 @@ public:
 		_NICE_class = _module.attr("NiceDummy").call(2, 2);
 	}
 
-	void learn(d2D paths, d1D probas)
-	{
+	void learn(d2D paths, d1D probas) {
 		auto paths_np = py::array_t<double>(py::cast(paths));
 		auto probas_np = py::array_t<double>(py::cast(probas));
-		_NICE_class.attr("learn").call(paths_np, probas_np);
+		{
+			std::lock_guard<std::mutex> guard(mutex);
+			_NICE_class.attr("learn").call(paths_np, probas_np);
+		}
 	}
 
 	std::tuple<d2D, d1D> get_paths(unsigned int num_path)
 	{
 		// Generation des chemins par l'implementation Python de NICE
-		py::object result = _NICE_class.attr("generate_paths").call(num_path);
+		py::object result;
+		{
+			std::lock_guard<std::mutex> gard(mutex);
+			result = _NICE_class.attr("generate_paths").call(num_path);
+		}
 		py::tuple tuple_result = result.cast<py::tuple>();
 
 		d2D paths;
@@ -64,4 +70,5 @@ public:
 private:
 	py::module_ _module;
 	py::object _NICE_class;
+	std::mutex mutex;
 };
