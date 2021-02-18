@@ -135,7 +135,9 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                                           BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
-        beta *= f * AbsDot(wi, isect.shading.n) / pdf;
+        // Remove pdf ?
+        //beta *= f * AbsDot(wi, isect.shading.n) / pdf;
+        beta *= f * AbsDot(wi, isect.shading.n);
         VLOG(2) << "Updated beta = " << beta;
         CHECK_GE(beta.y(), 0.f);
         DCHECK(!std::isinf(beta.y()));
@@ -157,7 +159,9 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
                 scene, sampler.Get1D(), sampler.Get2D(), arena, &pi, &pdf);
             DCHECK(!std::isinf(beta.y()));
             if (S.IsBlack() || pdf == 0) break;
-            beta *= S / pdf;
+            // Remove pdf ?
+            //beta *= S / pdf;
+            beta *= S;
 
             // Account for the direct subsurface scattering component
             L += beta * UniformSampleOneLight(pi, scene, arena, sampler, false,
@@ -167,7 +171,9 @@ Spectrum PathIntegrator::Li(const RayDifferential &r, const Scene &scene,
             Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, sampler.Get2D(), &pdf,
                                            BSDF_ALL, &flags);
             if (f.IsBlack() || pdf == 0) break;
-            beta *= f * AbsDot(wi, pi.shading.n) / pdf;
+            // Remove pdf ?
+            //beta *= f * AbsDot(wi, pi.shading.n) / pdf;
+            beta *= f * AbsDot(wi, pi.shading.n);
             DCHECK(!std::isinf(beta.y()));
             specularBounce = (flags & BSDF_SPECULAR) != 0;
             ray = pi.SpawnRay(wi);
