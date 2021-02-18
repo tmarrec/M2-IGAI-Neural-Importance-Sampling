@@ -51,7 +51,7 @@ STAT_INT_DISTRIBUTION("Integrator/Path length", pathLength);
 // PSSPSIntegrator Method Definitions
 PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
                                std::shared_ptr<const Camera> camera,
-                               std::shared_ptr<Sampler> sampler,
+                               std::shared_ptr<Sampler> baseSampler,
                                const Bounds2i &pixelBounds, Float rrThreshold,
                                const std::string &lightSampleStrategy,
                                int sampleBudget)
@@ -59,15 +59,16 @@ PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
       maxDepth(maxDepth),
       rrThreshold(rrThreshold),
       lightSampleStrategy(lightSampleStrategy),
-	  sampler(std::move(sampler)),
       pixelBounds(pixelBounds),
-      sampleBudget(sampleBudget)	  {}
+      sampler(std::dynamic_pointer_cast<NeuralSampler>(baseSampler)),
+      sampleBudget(sampleBudget)	  {
+      }
 
-void PSSPSIntegrator::Preprocess(const Scene &scene, Sampler &sampler) {
+void PSSPSIntegrator::Preprocess(const Scene &scene, NeuralSampler &sampler) {
 	std::cout << "Launching Neural Network..." << std::endl;
 
-	/*auto res = nice.get_paths(3);
-	nice.learn(std::get<0>(res), std::get<1>(res));*/
+	auto res = sampler.nice->get_paths(3);
+	sampler.nice->learn(std::get<0>(res), std::get<1>(res));
 
 	std::cout << "Neural Network Launched!" << std::endl;
     lightDistribution =
@@ -100,8 +101,9 @@ void PSSPSIntegrator::Render(const Scene &scene) {
 
                 // Get sampler instance for tile
                 int seed = tile.y * nTiles.x + tile.x;
-                std::unique_ptr<Sampler> tileSampler = sampler->Clone(seed);
-
+                std::unique_ptr<Sampler> clone = sampler->Clone(seed);
+                std::unique_ptr<NeuralSampler> tileSampler(static_cast<NeuralSampler*>(clone.release()));
+                
                 // Compute sample bounds for tile
                 int x0 = sampleBounds.pMin.x + tile.x * tileSize;
                 int x1 = std::min(x0 + tileSize, sampleBounds.pMax.x);
@@ -199,6 +201,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
 Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
                             Sampler &sampler, MemoryArena &arena,
                             int depth) const {
+    NeuralSampler& neuralSampler = dynamic_cast<NeuralSampler&>(sampler);
     ProfilePhase p(Prof::SamplerIntegratorLi);
     Spectrum L(0.f), beta(1.f);
     RayDifferential ray(r);
@@ -255,7 +258,7 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
             0) {
             ++totalPaths;
             Spectrum Ld = beta * UniformSampleOneLight(isect, scene, arena,
-                                                       sampler, false, distrib);
+                                                       neuralSampler, false, distrib);
             VLOG(2) << "Sampled direct lighting Ld = " << Ld;
             if (Ld.IsBlack()) ++zeroRadiancePaths;
             CHECK_GE(Ld.y(), 0.f);
@@ -267,7 +270,7 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
         Float pdf;
         BxDFType flags;
         // Get path direction from the matrix (NICE NN)
-        Spectrum f = isect.bsdf->Sample_f(wo, &wi, sampler.Get2D(), &pdf,
+        Spectrum f = isect.bsdf->Sample_f(wo, &wi, neuralSampler.GetNeural2D(), &pdf,
                                           BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
@@ -290,17 +293,17 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
             // Importance sample the BSSRDF
             SurfaceInteraction pi;
             Spectrum S = isect.bssrdf->Sample_S(
-                scene, sampler.Get1D(), sampler.Get2D(), arena, &pi, &pdf);
+                scene, neuralSampler.Get1D(), neuralSampler.GetUniform2D(), arena, &pi, &pdf);
             DCHECK(!std::isinf(beta.y()));
             if (S.IsBlack() || pdf == 0) break;
             beta *= S / pdf;
 
             // Account for the direct subsurface scattering component
-            L += beta * UniformSampleOneLight(pi, scene, arena, sampler, false,
+            L += beta * UniformSampleOneLight(pi, scene, arena, neuralSampler, false,
                                               lightDistribution->Lookup(pi.p));
 
             // Account for the indirect subsurface scattering component
-            Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, sampler.Get2D(), &pdf,
+            Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, neuralSampler.GetUniform2D(), &pdf,
                                            BSDF_ALL, &flags);
             if (f.IsBlack() || pdf == 0) break;
             beta *= f * AbsDot(wi, pi.shading.n) / pdf;
@@ -314,7 +317,7 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
         Spectrum rrBeta = beta * etaScale;
         if (rrBeta.MaxComponentValue() < rrThreshold && bounces > 3) {
             Float q = std::max((Float).05, 1 - rrBeta.MaxComponentValue());
-            if (sampler.Get1D() < q) break;
+            if (neuralSampler.Get1D() < q) break;
             beta /= 1 - q;
             DCHECK(!std::isinf(beta.y()));
         }

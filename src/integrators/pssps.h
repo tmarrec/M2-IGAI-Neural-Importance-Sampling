@@ -42,6 +42,7 @@
 #include "pbrt.h"
 #include "integrator.h"
 #include "lightdistrib.h"
+#include "../samplers/neural.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -58,17 +59,17 @@ class PSSPSIntegrator : public SamplerIntegrator {
                    const std::string &lightSampleStrategy = "spatial",
                    int sampleBudget = 4);
 	  void Render(const Scene &scene) override;
-    void Preprocess(const Scene &scene, Sampler &sampler);
+    void Preprocess(const Scene &scene, NeuralSampler &sampler);
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
                 Sampler &sampler, MemoryArena &arena, int depth) const;
 
   private:
-    // PathIntegrator Private Data
+    // PSSPSIntegrator Private Data
     const int maxDepth;
     const Float rrThreshold;
     const std::string lightSampleStrategy;
     std::unique_ptr<LightDistribution> lightDistribution;
-	  std::shared_ptr<Sampler> sampler;
+	  std::shared_ptr<NeuralSampler> sampler;
     const Bounds2i pixelBounds;
     int sampleBudget;
 };

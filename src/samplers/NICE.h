@@ -1,3 +1,4 @@
+#pragma once
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
@@ -21,19 +22,20 @@ public:
 	void learn(d2D paths, d1D probas) {
 		auto paths_np = py::array_t<double>(py::cast(paths));
 		auto probas_np = py::array_t<double>(py::cast(probas));
+		_NICE_class.attr("learn").call(paths_np, probas_np);
 	}
 
 	std::tuple<d2D, d1D> get_paths(unsigned int num_path)
 	{
 		// Generation des chemins par l'implementation Python de NICE
 		py::object result;
+		result = _NICE_class.attr("generate_paths").call(num_path);
 		py::tuple tuple_result = result.cast<py::tuple>();
 
 		d2D paths;
 		d1D probas;
-		
-		fill_paths(tuple_result, paths, probas);
 
+		fill_paths(tuple_result, paths, probas);
 		return std::tuple<d2D, d1D>(paths, probas);
 	}
 
