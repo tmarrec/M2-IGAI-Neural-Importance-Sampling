@@ -42,7 +42,6 @@
 #include "pbrt.h"
 #include "integrator.h"
 #include "lightdistrib.h"
-#include "../samplers/NICE.h"
 
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
@@ -56,8 +55,9 @@ class PSSPSIntegrator : public SamplerIntegrator {
     PSSPSIntegrator(int maxDepth, std::shared_ptr<const Camera> camera,
                    std::shared_ptr<Sampler> sampler,
                    const Bounds2i &pixelBounds, Float rrThreshold = 1,
-                   const std::string &lightSampleStrategy = "spatial");
-	void Render(const Scene &scene) override;
+                   const std::string &lightSampleStrategy = "spatial",
+                   int sampleBudget = 4);
+	  void Render(const Scene &scene) override;
     void Preprocess(const Scene &scene, Sampler &sampler);
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
                 Sampler &sampler, MemoryArena &arena, int depth) const;
@@ -68,9 +68,9 @@ class PSSPSIntegrator : public SamplerIntegrator {
     const Float rrThreshold;
     const std::string lightSampleStrategy;
     std::unique_ptr<LightDistribution> lightDistribution;
-	std::shared_ptr<Sampler> sampler;
+	  std::shared_ptr<Sampler> sampler;
     const Bounds2i pixelBounds;
-	NICE nice;
+    int sampleBudget;
 };
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,

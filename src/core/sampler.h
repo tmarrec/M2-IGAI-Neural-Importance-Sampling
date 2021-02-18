@@ -71,7 +71,8 @@ class Sampler {
     int64_t CurrentSampleNumber() const { return currentPixelSampleIndex; }
 
     // Sampler Public Data
-    const int64_t samplesPerPixel;
+    // samplesPerPixel is not const anymore because it's doubling at each iteration
+    int64_t samplesPerPixel;
 
   protected:
     // Sampler Protected Data

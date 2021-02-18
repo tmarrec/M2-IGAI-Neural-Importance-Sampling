@@ -74,8 +74,8 @@ void PSSPSSampler::StartPixel(const Point2i &p) {
 }
 
 Sampler *CreatePSSPSSampler(const ParamSet &params) {
-    int ns = params.FindOneInt("pixelsamples", 4);
-    return new PSSPSSampler(ns);
+    int sB = params.FindOneInt("samplebudget", 4);
+    return new PSSPSSampler(1);
 }
 
 }  // namespace pbrt

@@ -16,9 +16,9 @@ Integrator "pssps"
     "float errorthreshold" 0.01
     "string errorheuristic" "relative"
     "integer minsamples" 16
+	"integer samplebudget" 32
 
-Sampler "pssps" "integer pixelsamples" 32
-
+Sampler "pssps"
 
 WorldBegin
 
