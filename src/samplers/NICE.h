@@ -6,41 +6,37 @@
 
 namespace py = pybind11;
 
-typedef std::vector<std::vector<double>> d2D;
-typedef std::vector<double> d1D;
+typedef std::vector<std::vector<float>> vec2D;
+typedef std::vector<float> vec1D;
 
-class NICE
-{
+class NICE {
 public:
-	NICE()
-	{
+	NICE() {
 		// Import du module et de la classe NICE du Python
 		_module = py::module_::import("dummy");
-		_NICE_class = _module.attr("NiceDummy").call(2, 2);
+		_NICE_class = _module.attr("NiceDummy")(2, 2);
 	}
 
-	void learn(d2D paths, d1D probas) {
-		auto paths_np = py::array_t<double>(py::cast(paths));
-		auto probas_np = py::array_t<double>(py::cast(probas));
-		_NICE_class.attr("learn").call(paths_np, probas_np);
+	void learn(vec2D paths, vec1D probas) {
+		auto paths_np = py::array_t<float>(py::cast(paths));
+		auto probas_np = py::array_t<float>(py::cast(probas));
+		_NICE_class.attr("learn")(paths_np, probas_np);
 	}
 
-	std::tuple<d2D, d1D> get_paths(unsigned int num_path)
-	{
+	std::tuple<vec2D, vec1D> get_paths(unsigned int num_path) {
 		// Generation des chemins par l'implementation Python de NICE
 		py::object result;
-		result = _NICE_class.attr("generate_paths").call(num_path);
+		result = _NICE_class.attr("generate_paths")(num_path);
 		py::tuple tuple_result = result.cast<py::tuple>();
 
-		d2D paths;
-		d1D probas;
+		vec2D paths;
+		vec1D probas;
 
 		fill_paths(tuple_result, paths, probas);
-		return std::tuple<d2D, d1D>(paths, probas);
+		return std::tuple<vec2D, vec1D>(paths, probas);
 	}
 
-	void fill_paths(py::tuple& tuple, d2D& paths, d1D& probas)
-	{
+	void fill_paths(py::tuple& tuple, vec2D& paths, vec1D& probas) {
 		// Conversion des ndarray numpy en C++ vector
 		for (auto t : tuple)
 		{
@@ -48,7 +44,7 @@ public:
 			{
 				if (elem.cast<py::array_t<double>>().size() > 1)
 				{
-					d1D path;
+					vec1D path;
 					for (auto e : elem)
 						path.emplace_back(e.cast<double>());
 					paths.emplace_back(path);

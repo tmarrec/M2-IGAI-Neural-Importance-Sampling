@@ -65,12 +65,6 @@ PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
       }
 
 void PSSPSIntegrator::Preprocess(const Scene &scene, NeuralSampler &sampler) {
-	std::cout << "Launching Neural Network..." << std::endl;
-
-	auto res = sampler.nice->get_paths(3);
-	sampler.nice->learn(std::get<0>(res), std::get<1>(res));
-
-	std::cout << "Neural Network Launched!" << std::endl;
     lightDistribution =
         CreateLightSampleDistribution(lightSampleStrategy, scene);
 }
@@ -87,10 +81,23 @@ void PSSPSIntegrator::Render(const Scene &scene) {
     const int tileSize = 16;
     Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
                    (sampleExtent.y + tileSize - 1) / tileSize);
-
-    // Get NICE neural network results here in a matrix
+    
     while (sampleBudget > 1) {
         std::cout << "Samples per pixel : " << sampler->samplesPerPixel << std::endl;
+
+        // Sending luminance to neural network
+        if (sampler->samplesPerPixel != 1) {
+            std::cout << "Sending data to neural network." << std::endl;
+
+            auto res = sampler->get_paths(4);
+
+            sampler->learn(std::get<0>(res), std::get<1>(res));
+        }
+        
+	    std::cout << "Getting data from neural network." << std::endl;
+
+        auto data = sampler->get_paths((sampleExtent.x - 2) * (sampleExtent.y - 2));
+
         ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
         {
             ParallelFor2D([&](Point2i tile) {
