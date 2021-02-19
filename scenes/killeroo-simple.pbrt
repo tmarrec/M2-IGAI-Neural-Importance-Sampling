@@ -3,7 +3,7 @@ LookAt 400 20 30   0 63 -110   0 0 1
 Rotate -5 0 0 1
 Camera "perspective" "float fov" [39]
 Film "image"  
-"integer xresolution" [500] "integer yresolution" [500]
+"integer xresolution" [32] "integer yresolution" [32]
     "string filename" "killeroo-simple.exr"
 
 # zoom in by feet

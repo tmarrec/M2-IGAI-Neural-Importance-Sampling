@@ -13,8 +13,8 @@ class NICE {
 public:
 	NICE() {
 		// Import du module et de la classe NICE du Python
-		_module = py::module_::import("dummy");
-		_NICE_class = _module.attr("NiceDummy")(2, 2);
+		_module = py::module_::import("nice");
+		_NICE_class = _module.attr("Nice")(2, 2);
 	}
 
 	void learn(vec2D paths, vec1D probas) {

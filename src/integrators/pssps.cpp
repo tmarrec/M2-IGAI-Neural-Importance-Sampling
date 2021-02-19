@@ -81,7 +81,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
     const int tileSize = 16;
     Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
                    (sampleExtent.y + tileSize - 1) / tileSize);
-    //std::cout << (sampleExtent.x + tileSize - 1) / tileSize << " " << (sampleExtent.y + tileSize - 1) / tileSize << std::endl;
+    std::cout << sampleExtent.x << " " << sampleExtent.y << std::endl;
     
     while (sampleBudget > 1) {
         std::cout << "Samples per pixel : " << sampler->samplesPerPixel << std::endl;
@@ -98,7 +98,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
         // Reset paths
         paths.clear();
 
-        auto data = sampler->get_paths((sampleExtent.x - 2) * (sampleExtent.y - 2) * sampler->samplesPerPixel);
+        auto data = sampler->get_paths(sampleExtent.x * sampleExtent.y * sampler->samplesPerPixel);
         paths = std::get<0>(data);
         std::vector<float> probas = std::get<1>(data);
 
@@ -160,6 +160,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                     if (!InsideExclusive(pixel, pixelBounds))
                         continue;
 
+                    int numSample = 0;
                     do {
                         // Initialize _CameraSample_ for current sample
                         CameraSample cameraSample =
@@ -213,7 +214,9 @@ void PSSPSIntegrator::Render(const Scene &scene) {
 
                         // Calculate brightness for the neural network
                         float brightness = RGBToBrightness(L / static_cast<float>(tileSampler->samplesPerPixel));
-                        brightnessToNN[(seed * ((x1-x0) * (y1-y0))) + numPixel] = brightness;
+                        //std::cout << (seed * ((x1-x0) * (y1-y0))) + numPixel + numSample << std::endl;
+                        brightnessToNN[(seed * ((x1-x0) * (y1-y0))) + numPixel + numSample] = brightness;
+                        numSample++;
                     } while (tileSampler->StartNextSample());
 
                     numPixel++;
@@ -397,6 +400,7 @@ PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,
     std::string lightStrategy =
         params.FindOneString("lightsamplestrategy", "spatial");
     int sampleBudget = params.FindOneInt("samplebudget", 4);
+    std::cout << params.FindOneInt("xresolution", 4) << std::endl;
     return new PSSPSIntegrator(maxDepth, camera, sampler, pixelBounds,
                               rrThreshold, lightStrategy, sampleBudget);
 }

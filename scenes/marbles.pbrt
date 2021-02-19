@@ -1,21 +1,11 @@
 Camera "perspective" "float fov" 32
 
 Film "image"
-    "integer xresolution" 960
-    "integer yresolution" 540
+    "integer xresolution" 256
+    "integer yresolution" 256
     "string filename" "marbles.exr"
 
-PixelFilter "triangle"
-    "float xwidth" 1
-    "float ywidth" 1
-
 Integrator "pssps"
-    "string mode" "normal"
-    "integer batchsize" 8
-    "integer targetseconds" 30
-    "float errorthreshold" 0.01
-    "string errorheuristic" "relative"
-    "integer minsamples" 16
 	"integer samplebudget" 32
 
 Sampler "neural"
