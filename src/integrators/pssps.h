@@ -62,6 +62,7 @@ class PSSPSIntegrator : public SamplerIntegrator {
     void Preprocess(const Scene &scene, NeuralSampler &sampler);
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
                 Sampler &sampler, MemoryArena &arena, int depth) const;
+    float RGBToBrightness(Spectrum color);
 
   private:
     // PSSPSIntegrator Private Data

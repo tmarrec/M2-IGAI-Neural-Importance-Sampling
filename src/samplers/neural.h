@@ -51,13 +51,16 @@ class NeuralSampler : public Sampler {
     void StartPixel(const Point2i &);
     Float Get1D();
     Point2f Get2D();
-    Point2f GetNeural2D();
+    Point2f GetNeural2D(int pixel, int bounce);
     Point2f GetUniform2D();
+    float GetProbability(int pixel);
     std::unique_ptr<Sampler> Clone(int seed);
     void learn(std::vector<std::vector<float>> chemins, std::vector<float> luminance);
     std::tuple<std::vector<std::vector<float>>, std::vector<float>> get_paths(unsigned int num_path);
     
     std::shared_ptr<NICE> nice;
+    std::vector<std::vector<float>> tiledPaths;
+    std::vector<float> tiledProbas;
   private:
     RNG rng;
 };

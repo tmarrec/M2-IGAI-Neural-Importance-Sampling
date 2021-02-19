@@ -81,6 +81,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
     const int tileSize = 16;
     Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
                    (sampleExtent.y + tileSize - 1) / tileSize);
+    //std::cout << (sampleExtent.x + tileSize - 1) / tileSize << " " << (sampleExtent.y + tileSize - 1) / tileSize << std::endl;
     
     while (sampleBudget > 1) {
         std::cout << "Samples per pixel : " << sampler->samplesPerPixel << std::endl;
@@ -88,15 +89,13 @@ void PSSPSIntegrator::Render(const Scene &scene) {
         // Sending luminance to neural network
         if (sampler->samplesPerPixel != 1) {
             std::cout << "Sending data to neural network." << std::endl;
-
-            auto res = sampler->get_paths(4);
-
-            sampler->learn(std::get<0>(res), std::get<1>(res));
         }
         
 	    std::cout << "Getting data from neural network." << std::endl;
 
-        auto data = sampler->get_paths((sampleExtent.x - 2) * (sampleExtent.y - 2));
+        auto data = sampler->get_paths((sampleExtent.x - 2) * (sampleExtent.y - 2) * sampler->samplesPerPixel);
+        std::vector<std::vector<float>> paths = std::get<0>(data);
+        std::vector<float> probas = std::get<1>(data);
 
         ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
         {
@@ -108,6 +107,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
 
                 // Get sampler instance for tile
                 int seed = tile.y * nTiles.x + tile.x;
+
                 std::unique_ptr<Sampler> clone = sampler->Clone(seed);
                 std::unique_ptr<NeuralSampler> tileSampler(static_cast<NeuralSampler*>(clone.release()));
                 
@@ -117,6 +117,19 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                 int y0 = sampleBounds.pMin.y + tile.y * tileSize;
                 int y1 = std::min(y0 + tileSize, sampleBounds.pMax.y);
                 Bounds2i tileBounds(Point2i(x0, y0), Point2i(x1, y1));
+
+                // Paths for the tile
+                std::vector<std::vector<float>>::const_iterator pathsBegin = paths.begin() + (seed * ((x1-x0) * (y1-y0)));
+                std::vector<std::vector<float>>::const_iterator pathsEnd = paths.begin() + (seed + 1) * ((x1-x0) * (y1-y0));
+                std::vector<std::vector<float>> tiledPaths(pathsBegin, pathsEnd);
+                tileSampler->tiledPaths = tiledPaths;
+
+                // Probas for the tile
+                std::vector<float>::const_iterator probasBegin = probas.begin() + (seed * ((x1-x0) * (y1-y0)));
+                std::vector<float>::const_iterator probasEnd = probas.begin() + (seed + 1) * ((x1-x0) * (y1-y0));
+                std::vector<float> tiledProbas(probasBegin, probasEnd);
+                tileSampler->tiledProbas = tiledProbas;
+
                 LOG(INFO) << "Starting image tile " << tileBounds;
 
                 // Get _FilmTile_ for tile
@@ -124,6 +137,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                     camera->film->GetFilmTile(tileBounds);
 
                 // Loop over pixels in tile to render them
+                int numPixel = 0;
                 for (Point2i pixel : tileBounds) {
                     {
                         ProfilePhase pp(Prof::StartPixel);
@@ -152,7 +166,8 @@ void PSSPSIntegrator::Render(const Scene &scene) {
 
                         // Evaluate radiance along camera ray
                         Spectrum L(0.f);
-                        if (rayWeight > 0) L = Li(ray, scene, *tileSampler, arena, 0);
+                        // Li's last parameter is supposed to be the depth but is never used in this case, so it's just getting replaced by the pixel index for the neural sampling
+                        if (rayWeight > 0) L = Li(ray, scene, *tileSampler, arena, numPixel);
 
                         // Issue warning if unexpected radiance value returned
                         if (L.HasNaNs()) {
@@ -187,6 +202,7 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                         // value
                         arena.Reset();
                     } while (tileSampler->StartNextSample());
+                    numPixel++;
                 }
                 LOG(INFO) << "Finished image tile " << tileBounds;
 
@@ -277,11 +293,13 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
         Float pdf;
         BxDFType flags;
         // Get path direction from the matrix (NICE NN)
-        Spectrum f = isect.bsdf->Sample_f(wo, &wi, neuralSampler.GetNeural2D(), &pdf,
+        Spectrum f = isect.bsdf->Sample_f(wo, &wi, neuralSampler.GetNeural2D(depth, bounces), &pdf,
                                           BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
-        beta *= f * AbsDot(wi, isect.shading.n) / pdf;
+        // pdf is computed at the end 
+        //beta *= f * AbsDot(wi, isect.shading.n) / pdf;
+        beta *= f * AbsDot(wi, isect.shading.n);
         VLOG(2) << "Updated beta = " << beta;
         CHECK_GE(beta.y(), 0.f);
         DCHECK(!std::isinf(beta.y()));
@@ -303,7 +321,9 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
                 scene, neuralSampler.Get1D(), neuralSampler.GetUniform2D(), arena, &pi, &pdf);
             DCHECK(!std::isinf(beta.y()));
             if (S.IsBlack() || pdf == 0) break;
-            beta *= S / pdf;
+            // pdf is computed at the end 
+            //beta *= S / pdf;
+            beta *= S;
 
             // Account for the direct subsurface scattering component
             L += beta * UniformSampleOneLight(pi, scene, arena, neuralSampler, false,
@@ -313,11 +333,15 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
             Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, neuralSampler.GetUniform2D(), &pdf,
                                            BSDF_ALL, &flags);
             if (f.IsBlack() || pdf == 0) break;
-            beta *= f * AbsDot(wi, pi.shading.n) / pdf;
+            // pdf is computed at the end 
+            //beta *= f * AbsDot(wi, pi.shading.n) / pdf;
+            beta *= f * AbsDot(wi, pi.shading.n);
             DCHECK(!std::isinf(beta.y()));
             specularBounce = (flags & BSDF_SPECULAR) != 0;
             ray = pi.SpawnRay(wi);
         }
+        // Path probability is added as a weight
+        beta /= neuralSampler.GetProbability(depth);
 
         // Possibly terminate the path with Russian roulette.
         // Factor out radiance scaling due to refraction in rrBeta.
@@ -331,6 +355,10 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
     }
     ReportValue(pathLength, bounces);
     return L;
+}
+
+float PSSPSIntegrator::RGBToBrightness(Spectrum color) {
+    return color[0]*0.2126 + color[1]*0.7152 + color[2]*0.0722;
 }
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,

@@ -40,18 +40,18 @@ public:
 		// Conversion des ndarray numpy en C++ vector
 		for (auto t : tuple)
 		{
-			for (auto elem : t.cast<py::array_t<double>>())
+			for (auto elem : t.cast<py::array_t<float>>())
 			{
-				if (elem.cast<py::array_t<double>>().size() > 1)
+				if (elem.cast<py::array_t<float>>().size() > 1)
 				{
 					vec1D path;
 					for (auto e : elem)
-						path.emplace_back(e.cast<double>());
+						path.emplace_back(e.cast<float>());
 					paths.emplace_back(path);
 				}
 				else
 				{
-					probas.emplace_back(elem.cast<double>());
+					probas.emplace_back(elem.cast<float>());
 				}
 			}
 		}
