@@ -10,7 +10,7 @@ Film "image"
 # "integer xresolution" [1500] "integer yresolution" [1500]
 #	"float cropwindow" [ .34 .49  .67 .8 ]
 
-Integrator "volpathadaptive"
+Integrator "pssps"
     "string mode" "error"
     "integer batchsize" 8
     "integer targetseconds" 30
@@ -18,8 +18,9 @@ Integrator "volpathadaptive"
     "float confidencelevel" 95
     "string errorheuristic" "confidence"
     "integer minsamples" 16
+	"integer samplebudget" 32
 
-Sampler "halton" "integer pixelsamples" 512
+Sampler "neural"
 
 WorldBegin
 

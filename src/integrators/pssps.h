@@ -72,7 +72,12 @@ class PSSPSIntegrator : public SamplerIntegrator {
     std::unique_ptr<LightDistribution> lightDistribution;
 	  std::shared_ptr<NeuralSampler> sampler;
     const Bounds2i pixelBounds;
+    // Sample budget defined in the .pbrt file
     int sampleBudget;
+    //Paths get from the neural network
+    std::vector<std::vector<float>> paths;
+    // Brightness vector to send to the neural network
+    std::vector<float> brightnessToNN;
 };
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,

@@ -86,16 +86,25 @@ void PSSPSIntegrator::Render(const Scene &scene) {
     while (sampleBudget > 1) {
         std::cout << "Samples per pixel : " << sampler->samplesPerPixel << std::endl;
 
-        // Sending luminance to neural network
+        // Sending brightness to neural network
         if (sampler->samplesPerPixel != 1) {
             std::cout << "Sending data to neural network." << std::endl;
+
+            sampler->learn(paths, brightnessToNN);
         }
         
 	    std::cout << "Getting data from neural network." << std::endl;
 
+        // Reset paths
+        paths.clear();
+
         auto data = sampler->get_paths((sampleExtent.x - 2) * (sampleExtent.y - 2) * sampler->samplesPerPixel);
-        std::vector<std::vector<float>> paths = std::get<0>(data);
+        paths = std::get<0>(data);
         std::vector<float> probas = std::get<1>(data);
+
+        // Reset brightness
+        brightnessToNN.clear();
+        brightnessToNN.resize(probas.size());
 
         ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
         {
@@ -201,7 +210,12 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                         // Free _MemoryArena_ memory from computing image sample
                         // value
                         arena.Reset();
+
+                        // Calculate brightness for the neural network
+                        float brightness = RGBToBrightness(L / static_cast<float>(tileSampler->samplesPerPixel));
+                        brightnessToNN[(seed * ((x1-x0) * (y1-y0))) + numPixel] = brightness;
                     } while (tileSampler->StartNextSample());
+
                     numPixel++;
                 }
                 LOG(INFO) << "Finished image tile " << tileBounds;

@@ -10,9 +10,15 @@
 #Integrator "pssgpt"
 #    "bool NEE" "true"
 
-Integrator "ppg"
+Film "image"
+    "integer xresolution" 960
+    "integer yresolution" 540
+    "string filename" "cornell.exr"
 
-Sampler "sobol" "integer pixelsamples" [ 256 ]
+Integrator "pssps"
+	"integer samplebudget" 32
+
+Sampler "neural"
 
 Transform [ 1 -0 -0 -0 -0 1 -0 -0 -0 -0 -1 -0 -0 -1 6.8 1]
 
