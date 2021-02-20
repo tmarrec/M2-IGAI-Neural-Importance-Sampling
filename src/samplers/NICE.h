@@ -1,4 +1,5 @@
 #pragma once
+
 #include <pybind11/pybind11.h>
 #include <pybind11/embed.h>
 #include <pybind11/numpy.h>
@@ -13,6 +14,10 @@ class NICE {
 public:
 	NICE() {
 		// Import du module et de la classe NICE du Python
+		py::exec(R"(
+			import sys
+			sys.path.insert(0, "NICE")
+		)");
 		_module = py::module_::import("nice");
 		_NICE_class = _module.attr("Nice")(2, 2);
 	}

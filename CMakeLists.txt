@@ -113,6 +113,8 @@ CHECK_INCLUDE_FILES ( memory.h HAVE_MEMORY_H )
 IF ( HAVE_MEMORY_H )
   ADD_DEFINITIONS ( -D PBRT_HAVE_MEMORY_H )
 ENDIF ()
+ 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden")
 
 ###########################################################################
 # Check for various C++11 features and set preprocessor variables or
@@ -581,3 +583,5 @@ INSTALL ( TARGETS
   DESTINATION
   lib
   )
+
+FILE ( COPY src/NICE DESTINATION . )
