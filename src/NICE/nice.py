@@ -48,7 +48,7 @@ class Nice:
         -kwargs: set different parameters for the nn (silent, num_bins, blob, loss function)
     """
 
-    def __init__(self, num_coupling_layers, path_length, nb_epoch=10, **kwargs):
+    def __init__(self, num_coupling_layers, path_length, nb_epoch=1, **kwargs):
         """" Initialize the NICE neural network"""
         self.coupling_layers = None
         self.num_coupling_layers = num_coupling_layers
