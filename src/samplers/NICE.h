@@ -19,7 +19,7 @@ public:
 			sys.path.insert(0, "NICE")
 		)");
 		_module = py::module_::import("nice");
-		_NICE_class = _module.attr("Nice")(2, 2);
+		_NICE_class = _module.attr("Nice")(4, 6, 1);
 	}
 
 	void learn(vec2D paths, vec1D probas) {

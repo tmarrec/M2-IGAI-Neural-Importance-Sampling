@@ -212,10 +212,8 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                         // value
                         arena.Reset();
 
-                        // Calculate brightness for the neural network
-                        float brightness = RGBToBrightness(L / static_cast<float>(tileSampler->samplesPerPixel));
                         //std::cout << (seed * ((x1-x0) * (y1-y0))) + numPixel + numSample << std::endl;
-                        brightnessToNN[(seed * ((x1-x0) * (y1-y0))) + numPixel + numSample] = brightness;
+                        brightnessToNN[(seed * ((x1-x0) * (y1-y0))) + numPixel + numSample] = L.y();
                         numSample++;
                     } while (tileSampler->StartNextSample());
 
@@ -229,13 +227,13 @@ void PSSPSIntegrator::Render(const Scene &scene) {
             }, nTiles);
             reporter.Done();
         }
+        // Save intermediate image after rendering
+        camera->film->WriteImage(1, std::to_string(sampler->samplesPerPixel));
+
         sampleBudget -= sampler->samplesPerPixel;
         sampler->samplesPerPixel *= 2;
     }
     LOG(INFO) << "Rendering finished";
-
-    // Save final image after rendering
-    camera->film->WriteImage();
 }
 
 Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
@@ -372,10 +370,6 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
     }
     ReportValue(pathLength, bounces);
     return L;
-}
-
-float PSSPSIntegrator::RGBToBrightness(Spectrum color) {
-    return color[0]*0.2126 + color[1]*0.7152 + color[2]*0.0722;
 }
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,
