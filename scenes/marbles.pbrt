@@ -1,14 +1,14 @@
 Camera "perspective" "float fov" 32
 
 Film "image"
-    "integer xresolution" 256
-    "integer yresolution" 256
-    "string filename" "marbles.exr"
+    "integer xresolution" 128
+    "integer yresolution" 128
+    "string filename" "16marblesuni.png"
 
-Integrator "pssps"
-	"integer samplebudget" 32
+Integrator "path"
 
-Sampler "neural"
+Sampler "random"
+	"integer pixelsamples" 16
 
 WorldBegin
 
