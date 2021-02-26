@@ -445,13 +445,6 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
     return L;
 }
 
-<<<<<<< HEAD
-float PSSPSIntegrator::XYZToBrightness(Spectrum color) {
-    return color[1];
-}
-
-=======
->>>>>>> 68f30a1619293315cb62de4859fe3327c09dd5be
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,
                                      std::shared_ptr<Sampler> sampler,
                                      std::shared_ptr<const Camera> camera) {
