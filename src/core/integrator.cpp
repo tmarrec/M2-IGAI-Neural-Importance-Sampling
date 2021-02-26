@@ -42,6 +42,7 @@
 #include "progressreporter.h"
 #include "camera.h"
 #include "stats.h"
+#include <random>
 
 namespace pbrt {
 
@@ -245,7 +246,8 @@ void SamplerIntegrator::Render(const Scene &scene) {
 
             // Get sampler instance for tile
             int seed = tile.y * nTiles.x + tile.x;
-            std::unique_ptr<Sampler> tileSampler = sampler->Clone(seed);
+            std::random_device rd;
+            std::unique_ptr<Sampler> tileSampler = sampler->Clone(rd());
 
             // Compute sample bounds for tile
             int x0 = sampleBounds.pMin.x + tile.x * tileSize;
