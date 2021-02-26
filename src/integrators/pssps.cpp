@@ -51,107 +51,131 @@ STAT_INT_DISTRIBUTION("Integrator/Path length", pathLength);
 // PSSPSIntegrator Method Definitions
 PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
                                std::shared_ptr<const Camera> camera,
-                               std::shared_ptr<Sampler> baseSampler,
+                               std::shared_ptr<Sampler> sampler,
                                const Bounds2i &pixelBounds, Float rrThreshold,
                                const std::string &lightSampleStrategy,
                                int sampleBudget)
-    : SamplerIntegrator(camera, sampler, pixelBounds),
-      maxDepth(maxDepth),
+    : maxDepth(maxDepth),
       rrThreshold(rrThreshold),
       lightSampleStrategy(lightSampleStrategy),
+      sampler(sampler),
+      camera(camera),
       pixelBounds(pixelBounds),
-      sampler(std::dynamic_pointer_cast<NeuralSampler>(baseSampler)),
-      sampleBudget(sampleBudget)	  {
-      }
+      sampleBudget(sampleBudget) {}
 
-void PSSPSIntegrator::Preprocess(const Scene &scene, NeuralSampler &sampler) {
-    lightDistribution =
-        CreateLightSampleDistribution(lightSampleStrategy, scene);
+typedef struct stats_s {
+	stats_s() : samples(0), mean(0), moment2(0) {}
+	stats_s(long samples, Spectrum mean, Spectrum moment2) : samples(samples), mean(mean), moment2(moment2){}
+	long samples;
+	Spectrum mean;
+	Spectrum moment2;
+} Stats;
+
+typedef struct {
+	Spectrum L;
+	Float rayWeight;
+	Point2f pFilm;
+} Sample;
+
+typedef enum {
+	variance,
+	every_iteration,
+	sum_iteration
+} Startegie;
+
+void UpdateStats(Stats &stats, Spectrum L) {
+	++stats.samples;
+	Spectrum delta = L - stats.mean;
+	stats.mean += delta / stats.samples;
+	stats.moment2 += delta * (L - stats.mean);
+
+	// Update the statistics above using Welford's online algorithm
+}
+
+Spectrum Variance(const Stats& stat) {
+	return stat.moment2 / stat.samples;
 }
 
 void PSSPSIntegrator::Render(const Scene &scene) {
-	Preprocess(scene, *sampler);
-    std::cout << "Sample Budget : " << sampleBudget << std::endl;
-
-	// Render image tiles in parallel
-
-    // Compute number of tiles, _nTiles_, to use for parallel rendering
-    Bounds2i sampleBounds = camera->film->GetSampleBounds();
-    Vector2i sampleExtent = sampleBounds.Diagonal();
-    const int tileSize = 16;
-    Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
+	const Startegie strategie = Startegie::every_iteration;
+	std::cout << "Sample Budget : " << sampleBudget << std::endl;
+	std::cout << "Strategie : ";
+	switch (strategie) {
+		case variance:
+			std::cout << "variance" << std::endl;
+			break;
+		case every_iteration:
+			std::cout << "every iteration" << std::endl;
+			break;
+		case sum_iteration:
+			std::cout << "sum iteration" << std::endl;
+	}
+	lightDistribution =
+			CreateLightSampleDistribution(lightSampleStrategy, scene);
+	int budget = sampleBudget;
+	int samplesPerPixel = 1;
+	Float sumWeights = 0;
+	// Compute number of tiles, _nTiles_, to use for parallel rendering
+	Bounds2i sampleBounds = camera->film->GetSampleBounds();
+	Vector2i sampleExtent = sampleBounds.Diagonal();
+	const int tileSize = 16;
+	Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
                    (sampleExtent.y + tileSize - 1) / tileSize);
-    std::cout << sampleExtent.x << " " << sampleExtent.y << std::endl;
-    
-    while (sampleBudget > 1) {
-        std::cout << "Samples per pixel : " << sampler->samplesPerPixel << std::endl;
+	std::vector<std::unique_ptr<FilmTile>> filmTiles;
+	std::mutex mutexFilmTiles;
+	int filmTilesIdx = 0;
 
-        // Sending brightness to neural network
-        if (sampler->samplesPerPixel != 1) {
-            std::cout << "Sending data to neural network." << std::endl;
+	// stats
+	std::vector<Stats> pixelStats(sampleExtent.x * sampleExtent.y);
 
-            sampler->learn(paths, brightnessToNN);
-        }
-        
-	    std::cout << "Getting data from neural network." << std::endl;
+	std::cout << sampleExtent.x << " " << sampleExtent.y << std::endl;
 
-        // Reset paths
-        paths.clear();
+	while (budget > 0) {
+		std::cout << "Buget : " << budget << std::endl;
+		std::cout << "Samples per pixel : " << samplesPerPixel << std::endl;
 
-        auto data = sampler->get_paths(sampleExtent.x * sampleExtent.y * sampler->samplesPerPixel);
-        paths = std::get<0>(data);
-        std::vector<float> probas = std::get<1>(data);
+		// generate new paths
+		std::cout << "Getting data from neural network." << std::endl;
+		std::tie(paths, probas) = nice.get_paths(sampleExtent.x * sampleExtent.y * samplesPerPixel);
 
-        // Reset brightness
-        brightnessToNN.clear();
-        brightnessToNN.resize(probas.size());
+		// prepare the buffers
+		std::vector<Float> brightnessToNN(probas.size());
 
-        ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
-        {
-            ParallelFor2D([&](Point2i tile) {
+		{
+			ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
+			ParallelFor2D([&](Point2i tile) {
                 // Render section of image corresponding to _tile_
 
                 // Allocate _MemoryArena_ for tile
                 MemoryArena arena;
 
-                // Get sampler instance for tile
-                int seed = tile.y * nTiles.x + tile.x;
+				std::unique_ptr<FilmTile> filmTile = camera->film->GetFilmTile(sampleBounds);
 
-                std::unique_ptr<Sampler> clone = sampler->Clone(seed);
-                std::unique_ptr<NeuralSampler> tileSampler(static_cast<NeuralSampler*>(clone.release()));
-                
-                // Compute sample bounds for tile
-                int x0 = sampleBounds.pMin.x + tile.x * tileSize;
-                int x1 = std::min(x0 + tileSize, sampleBounds.pMax.x);
-                int y0 = sampleBounds.pMin.y + tile.y * tileSize;
-                int y1 = std::min(y0 + tileSize, sampleBounds.pMax.y);
-                Bounds2i tileBounds(Point2i(x0, y0), Point2i(x1, y1));
+				// Get sampler instance for tile
+				int seed = tile.y * nTiles.x + tile.x;
+				std::unique_ptr<Sampler> tileSampler = sampler->Clone(seed);
 
-                // Paths for the tile
-                std::vector<std::vector<float>>::const_iterator pathsBegin = paths.begin() + (seed * ((x1-x0) * (y1-y0)));
-                std::vector<std::vector<float>>::const_iterator pathsEnd = paths.begin() + (seed + 1) * ((x1-x0) * (y1-y0));
-                std::vector<std::vector<float>> tiledPaths(pathsBegin, pathsEnd);
-                tileSampler->tiledPaths = tiledPaths;
+				// Compute sample bounds for tile
+				int x0 = sampleBounds.pMin.x + tile.x * tileSize;
+				int x1 = std::min(x0 + tileSize, sampleBounds.pMax.x);
+				int y0 = sampleBounds.pMin.y + tile.y * tileSize;
+				int y1 = std::min(y0 + tileSize, sampleBounds.pMax.y);
+				Bounds2i tileBounds(Point2i(x0, y0), Point2i(x1, y1));
 
-                // Probas for the tile
-                std::vector<float>::const_iterator probasBegin = probas.begin() + (seed * ((x1-x0) * (y1-y0)));
-                std::vector<float>::const_iterator probasEnd = probas.begin() + (seed + 1) * ((x1-x0) * (y1-y0));
-                std::vector<float> tiledProbas(probasBegin, probasEnd);
-                tileSampler->tiledProbas = tiledProbas;
+				LOG(INFO) << "Starting image tile " << tileBounds;
 
-                LOG(INFO) << "Starting image tile " << tileBounds;
 
-                // Get _FilmTile_ for tile
-                std::unique_ptr<FilmTile> filmTile =
-                    camera->film->GetFilmTile(tileBounds);
+				// Offset in sampleBuffer
+				int pixelIdx = tile.y * tileSize * sampleExtent.x + tile.x * (y1 - y0) * tileSize;
 
-                // Loop over pixels in tile to render them
-                int numPixel = 0;
-                for (Point2i pixel : tileBounds) {
-                    {
-                        ProfilePhase pp(Prof::StartPixel);
-                        tileSampler->StartPixel(pixel);
-                    }
+				// Loop over pixels in tile to render them
+				for (Point2i pixel : tileBounds) {
+					{
+						ProfilePhase pp(Prof::StartPixel);
+						tileSampler->StartPixel(pixel);
+						tileSampler->samplesPerPixel = samplesPerPixel;
+					}
+
 
                     // Do this check after the StartPixel() call; this keeps
                     // the usage of RNG values from (most) Samplers that use
@@ -160,24 +184,28 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                     if (!InsideExclusive(pixel, pixelBounds))
                         continue;
 
-                    int numSample = 0;
-                    do {
-                        // Initialize _CameraSample_ for current sample
-                        CameraSample cameraSample =
-                            tileSampler->GetCameraSample(pixel);
+                    // Offset in paths and probas
+                    int sampleIdx = pixelIdx * samplesPerPixel;
+                    Stats pixelStat;  // = pixelStats[pixelIdx];
 
-                        // Generate camera ray for current sample
+					do {
+
+						// Initialize _CameraSample_ for current sample
+						CameraSample cameraSample =
+								tileSampler->GetCameraSample(pixel);
+
+						// Generate camera ray for current sample
                         RayDifferential ray;
                         Float rayWeight =
                             camera->GenerateRayDifferential(cameraSample, &ray);
                         ray.ScaleDifferentials(
-                            1 / std::sqrt((Float)tileSampler->samplesPerPixel));
+                            1 / std::sqrt(samplesPerPixel));
                         ++nCameraRays;
 
                         // Evaluate radiance along camera ray
                         Spectrum L(0.f);
                         // Li's last parameter is supposed to be the depth but is never used in this case, so it's just getting replaced by the pixel index for the neural sampling
-                        if (rayWeight > 0) L = Li(ray, scene, *tileSampler, arena, numPixel);
+                        if (rayWeight > 0) L = Li(ray, scene, *tileSampler, arena, sampleIdx);
 
                         // Issue warning if unexpected radiance value returned
                         if (L.HasNaNs()) {
@@ -205,43 +233,80 @@ void PSSPSIntegrator::Render(const Scene &scene) {
                         VLOG(1) << "Camera sample: " << cameraSample << " -> ray: " <<
                             ray << " -> L = " << L;
 
-                        // Add camera ray's contribution to image
-                        filmTile->AddSample(cameraSample.pFilm, L, rayWeight);
+						// Free _MemoryArena_ memory from computing image sample
+						// value
+						arena.Reset();
 
-                        // Free _MemoryArena_ memory from computing image sample
-                        // value
-                        arena.Reset();
-
-                        // Calculate brightness for the neural network
-                        float brightness = RGBToBrightness(L / static_cast<float>(tileSampler->samplesPerPixel));
-                        //std::cout << (seed * ((x1-x0) * (y1-y0))) + numPixel + numSample << std::endl;
-                        brightnessToNN[(seed * ((x1-x0) * (y1-y0))) + numPixel + numSample] = brightness;
-                        numSample++;
-                    } while (tileSampler->StartNextSample());
-
-                    numPixel++;
+						// Add camera ray's contribution to image
+						filmTile->AddSample(cameraSample.pFilm, L, rayWeight);
+						L *= rayWeight;
+						brightnessToNN[sampleIdx] = L.y();
+						if (strategie == variance) {
+							UpdateStats(pixelStat, L);
+						}
+						++sampleIdx;
+					} while (tileSampler->StartNextSample());
+					pixelStats[pixelIdx] = pixelStat;
+					++pixelIdx;
                 }
                 LOG(INFO) << "Finished image tile " << tileBounds;
-
-                // Merge image tile into _Film_
-                camera->film->MergeFilmTile(std::move(filmTile));
+				if (strategie == every_iteration or strategie == sum_iteration) {
+					camera->film->MergeFilmTile(std::move(filmTile));
+				}
+				if (strategie == variance) {
+					std::lock_guard<std::mutex> guard(mutexFilmTiles);
+					filmTiles.emplace_back(std::move(filmTile));
+				}
                 reporter.Update();
-            }, nTiles);
-            reporter.Done();
+			}, nTiles);
+			reporter.Done();
         }
-        sampleBudget -= sampler->samplesPerPixel;
-        sampler->samplesPerPixel *= 2;
-    }
-    LOG(INFO) << "Rendering finished";
+		if (strategie == variance) {
+			Float weight;
+			if (samplesPerPixel > 1) {
+				Spectrum meanVar(0.0f);
+				for (int i = 0; i < pixelStats.size(); ++i) {
+					meanVar += Variance(pixelStats[i]);
+				}
+				meanVar /= pixelStats.size();
+				Float var = meanVar.y();
+				weight = 1 / var;
+			} else {
+				weight = 1.f;
+			}
+			sumWeights += samplesPerPixel * weight;
+			for (;filmTilesIdx < filmTiles.size(); ++filmTilesIdx) {
+				filmTiles[filmTilesIdx]->ScaleBy(weight);
+			}
+		}
+		if (strategie == every_iteration) {
+			camera->film->WriteImage(1, std::to_string(samplesPerPixel));
+		}
+		budget -= samplesPerPixel;
+    	samplesPerPixel *= 2;
 
-    // Save final image after rendering
-    camera->film->WriteImage();
+		// Sending brightness to neural network
+		if (budget > 0) {
+			std::cout << "Sending data to neural network." << std::endl;
+			nice.learn(paths, brightnessToNN);
+		}
+	}
+	if (strategie == variance) {
+		for (auto &filmTile : filmTiles) {
+			filmTile->ScaleBy(sampleBudget / sumWeights);
+			camera->film->MergeFilmTile(std::move(filmTile));
+		}
+	}
+	LOG(INFO) << "Rendering finished";
+	// Save final image after rendering
+	if (strategie == variance or strategie == sum_iteration) {
+		camera->film->WriteImage();
+	}
 }
 
 Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
                             Sampler &sampler, MemoryArena &arena,
-                            int depth) const {
-    NeuralSampler& neuralSampler = dynamic_cast<NeuralSampler&>(sampler);
+                            int sampleOffset) const {
     ProfilePhase p(Prof::SamplerIntegratorLi);
     Spectrum L(0.f), beta(1.f);
     RayDifferential ray(r);
@@ -255,7 +320,7 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
     // avoid terminating refracted rays that are about to be refracted back
     // out of a medium and thus have their beta value increased.
     Float etaScale = 1;
-
+	beta /= probas[sampleOffset];
     for (bounces = 0;; ++bounces) {
         // Find next path vertex and accumulate contribution
         VLOG(2) << "Path tracer bounce " << bounces << ", current L = " << L
@@ -298,7 +363,7 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
             0) {
             ++totalPaths;
             Spectrum Ld = beta * UniformSampleOneLight(isect, scene, arena,
-                                                       neuralSampler, false, distrib);
+                                                       sampler, false, distrib);
             VLOG(2) << "Sampled direct lighting Ld = " << Ld;
             if (Ld.IsBlack()) ++zeroRadiancePaths;
             CHECK_GE(Ld.y(), 0.f);
@@ -310,8 +375,14 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
         Float pdf;
         BxDFType flags;
         // Get path direction from the matrix (NICE NN)
-        Spectrum f = isect.bsdf->Sample_f(wo, &wi, neuralSampler.GetNeural2D(depth, bounces), &pdf,
-                                          BSDF_ALL, &flags);
+		Point2f u;
+		if (bounces < nice.path_length) {
+			u = {paths[sampleOffset][2 * bounces], paths[sampleOffset][2 * bounces + 1]};
+		} else {
+        	u = sampler.Get2D();
+        }
+		Spectrum f = isect.bsdf->Sample_f(wo, &wi, u, &pdf,
+										  BSDF_ALL, &flags);
         VLOG(2) << "Sampled BSDF, f = " << f << ", pdf = " << pdf;
         if (f.IsBlack() || pdf == 0.f) break;
         // pdf is computed at the end 
@@ -335,7 +406,7 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
             // Importance sample the BSSRDF
             SurfaceInteraction pi;
             Spectrum S = isect.bssrdf->Sample_S(
-                scene, neuralSampler.Get1D(), neuralSampler.GetUniform2D(), arena, &pi, &pdf);
+                scene, sampler.Get1D(), sampler.Get2D(), arena, &pi, &pdf);
             DCHECK(!std::isinf(beta.y()));
             if (S.IsBlack() || pdf == 0) break;
             // pdf is computed at the end 
@@ -343,11 +414,11 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
             beta *= S;
 
             // Account for the direct subsurface scattering component
-            L += beta * UniformSampleOneLight(pi, scene, arena, neuralSampler, false,
+            L += beta * UniformSampleOneLight(pi, scene, arena, sampler, false,
                                               lightDistribution->Lookup(pi.p));
 
             // Account for the indirect subsurface scattering component
-            Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, neuralSampler.GetUniform2D(), &pdf,
+            Spectrum f = pi.bsdf->Sample_f(pi.wo, &wi, sampler.Get2D(), &pdf,
                                            BSDF_ALL, &flags);
             if (f.IsBlack() || pdf == 0) break;
             // pdf is computed at the end 
@@ -358,14 +429,14 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
             ray = pi.SpawnRay(wi);
         }
         // Path probability is added as a weight
-        beta /= neuralSampler.GetProbability(depth);
+        // beta *= probas[sampleOffset];
 
         // Possibly terminate the path with Russian roulette.
         // Factor out radiance scaling due to refraction in rrBeta.
         Spectrum rrBeta = beta * etaScale;
         if (rrBeta.MaxComponentValue() < rrThreshold && bounces > 3) {
             Float q = std::max((Float).05, 1 - rrBeta.MaxComponentValue());
-            if (neuralSampler.Get1D() < q) break;
+            if (sampler.Get1D() < q) break;
             beta /= 1 - q;
             DCHECK(!std::isinf(beta.y()));
         }
@@ -374,8 +445,8 @@ Spectrum PSSPSIntegrator::Li(const RayDifferential &r, const Scene &scene,
     return L;
 }
 
-float PSSPSIntegrator::RGBToBrightness(Spectrum color) {
-    return color[0]*0.2126 + color[1]*0.7152 + color[2]*0.0722;
+float PSSPSIntegrator::XYZToBrightness(Spectrum color) {
+    return color[1];
 }
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,

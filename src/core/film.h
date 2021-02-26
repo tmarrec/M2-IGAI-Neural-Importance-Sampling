@@ -77,6 +77,7 @@ class Film {
     void AddSplat(const Point2f &p, Spectrum v);
     void WriteImage(Float splatScale = 1, const std::string& id="");
     void Clear();
+    void ScaleBy(const Float scale);
 
     // Film Public Data
     const Point2i fullResolution;
@@ -181,6 +182,11 @@ class FilmTile {
         return pixels[offset];
     }
     Bounds2i GetPixelBounds() const { return pixelBounds; }
+    void ScaleBy(const Float scale) {
+    	for (auto &pixel : pixels) {
+    		pixel.contribSum *= scale;
+    	}
+    }
 
   private:
     // FilmTile Private Data

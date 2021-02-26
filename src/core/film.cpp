@@ -218,6 +218,15 @@ void Film::WriteImage(Float splatScale, const std::string& id) {
     pbrt::WriteImage(id+filename, &rgb[0], croppedPixelBounds, fullResolution);
 }
 
+void Film::ScaleBy(const Float scale) {
+	for (Point2i p : croppedPixelBounds) {
+		Pixel &pixel = GetPixel(p);
+		pixel.xyz[0] *= scale;
+		pixel.xyz[1] *= scale;
+		pixel.xyz[2] *= scale;
+	}
+}
+
 Film *CreateFilm(const ParamSet &params, std::unique_ptr<Filter> filter) {
     std::string filename;
     if (PbrtOptions.imageFile != "") {

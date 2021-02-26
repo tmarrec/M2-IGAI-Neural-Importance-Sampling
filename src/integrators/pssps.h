@@ -50,7 +50,7 @@
 namespace pbrt {
 
 // PSSPSIntegrator Declarations
-class PSSPSIntegrator : public SamplerIntegrator {
+class PSSPSIntegrator : public Integrator {
   public:
     // PathIntegrator Public Methods
     PSSPSIntegrator(int maxDepth, std::shared_ptr<const Camera> camera,
@@ -58,26 +58,30 @@ class PSSPSIntegrator : public SamplerIntegrator {
                    const Bounds2i &pixelBounds, Float rrThreshold = 1,
                    const std::string &lightSampleStrategy = "spatial",
                    int sampleBudget = 4);
-	  void Render(const Scene &scene) override;
-    void Preprocess(const Scene &scene, NeuralSampler &sampler);
+    void Render(const Scene &scene) override;
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
-                Sampler &sampler, MemoryArena &arena, int depth) const;
-    float RGBToBrightness(Spectrum color);
+                Sampler &sampler, MemoryArena &arena, int sampleOffset) const;
 
   private:
-    // PSSPSIntegrator Private Data
+	float XYZToBrightness(Spectrum color);
+
+	// PSSPSIntegrator Private Data
+	// data from path.h
     const int maxDepth;
     const Float rrThreshold;
     const std::string lightSampleStrategy;
     std::unique_ptr<LightDistribution> lightDistribution;
-	  std::shared_ptr<NeuralSampler> sampler;
-    const Bounds2i pixelBounds;
-    // Sample budget defined in the .pbrt file
+
+	std::shared_ptr<const Camera> camera;
+	std::shared_ptr<Sampler> sampler;
+	const Bounds2i pixelBounds;
+	// Neural network
+	NICE nice;
+	// Sample budget defined in the .pbrt file
     int sampleBudget;
-    //Paths get from the neural network
-    std::vector<std::vector<float>> paths;
-    // Brightness vector to send to the neural network
-    std::vector<float> brightnessToNN;
+	// paths and probas generate by the neural network
+	std::vector<std::vector<float>> paths;
+	std::vector<float> probas;
 };
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,
