@@ -43,7 +43,7 @@ class Nice:
 
     Args:
         -num_coupling_layers: Number of coupling layers to use
-        -path_length: Number of bounces to be considered (generates samples of length path_lenght*2)
+        -path_length: Number of bounces to be considered (generates samples of size path_length*2)
         -nb_epoch: Number of loop on given paths to learn
         -kwargs: set different parameters for the nn (silent, num_bins, blob, loss function)
     """
@@ -57,15 +57,24 @@ class Nice:
 
         self.silent = kwargs.get("silent", True)
         self.num_bins = kwargs.get("num_bins", 32)
-        self.blob = kwargs.get("blob", 16)
+        self.blob = kwargs.get("blob", 32)
         self.loss = kwargs.get("loss", "kl")
+        self.recomp = kwargs.get("recomp","quadratic")
 
         # Create the coupling layers
         self.masks = self.make_masks()
         bijector = []
-        for mask in self.masks:
-            bijector.append(
-                couplings.PiecewiseQuadratic(mask, build, num_bins=self.num_bins, blob=self.blob, options=None))
+
+        if self.recomp == "linear":
+            for mask in self.masks:
+                bijector.append(
+                    couplings.PiecewiseLinear(mask, build, num_bins=self.num_bins, blob=self.blob, options=None))
+        else :
+            for mask in self.masks:
+                bijector.append(
+                    couplings.PiecewiseQuadratic(mask, build, num_bins=self.num_bins, blob=self.blob, options=None))
+
+
         bijector = tfb.Chain(list(reversed(bijector)))
 
         # Create the tensorflow distribution
@@ -99,13 +108,19 @@ class Nice:
 
     def learn(self, paths, probas):
         """"Perform learning on given data"""
+        loss = []
+        sample_lenght = max(4,((self.nb_epoch//4)+1))
+
+
         if not self.silent:
             print("NICE : begin learning with", len(paths), "samples,", self.nb_epoch, "epochs")
         for i in range(self.nb_epoch):
-            paths_learn, probas_learn = resample(paths, probas, replace=False, n_samples=(len(paths)//2))
-            self.learn_one(paths_learn, probas_learn)
+            paths_learn, probas_learn = resample(paths, probas, replace=False, n_samples=(len(paths)//sample_lenght))
+            loss.append(self.learn_one(paths_learn, probas_learn))
             if not self.silent:
                 print("NICE : epoch n", i, "done")
+
+        return loss
 
     def generate_paths(self, num_path):
         """Generate a numpy array containing samples according to the learned distribution, and their probabilities"""
@@ -116,3 +131,18 @@ class Nice:
     def paths_probas(self, paths):
         """"Estimate the probabilities of the given paths"""
         return self.integrate.sample_weights(paths)
+
+    def __str__(self):
+        """"Get NICE infos"""
+
+        string = "--- NICE Network for Neural Importance Sampling ---\n"
+        string += "Parameters:\n"
+        string += "\t-Number of coupling layers:\t" + str(self.num_coupling_layers) + "\n"
+        string += "\t-Dimension of samples:\t\t" + str(self.path_length*2) + "\n"
+        string += "\t-Epochs on learning data:\t" + str(self.nb_epoch) + "\n"
+        string += "\t-Number of bins:\t\t"+str(self.num_bins)+"\n"
+        string += "\t-Number of blobs:\t\t"+str(self.blob)+"\n"
+        string += "\t-Loss function:\t\t\t"+str(self.loss)+"\n"
+        string += "---------------------------------------------------\n"
+
+        return string
