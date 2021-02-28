@@ -54,14 +54,16 @@ PSSPSIntegrator::PSSPSIntegrator(int maxDepth,
                                std::shared_ptr<Sampler> sampler,
                                const Bounds2i &pixelBounds, Float rrThreshold,
                                const std::string &lightSampleStrategy,
-                               int sampleBudget)
+                               int sampleBudget,
+                               Strategie strategie)
     : maxDepth(maxDepth),
       rrThreshold(rrThreshold),
       lightSampleStrategy(lightSampleStrategy),
       sampler(sampler),
       camera(camera),
       pixelBounds(pixelBounds),
-      sampleBudget(sampleBudget) {}
+      sampleBudget(sampleBudget),
+      strategie(strategie){}
 
 typedef struct stats_s {
 	stats_s() : samples(0), mean(0), moment2(0) {}
@@ -77,12 +79,6 @@ typedef struct {
 	Point2f pFilm;
 } Sample;
 
-typedef enum {
-	variance,
-	every_iteration,
-	sum_iteration
-} Startegie;
-
 void UpdateStats(Stats &stats, Spectrum L) {
 	++stats.samples;
 	Spectrum delta = L - stats.mean;
@@ -97,7 +93,6 @@ Spectrum Variance(const Stats& stat) {
 }
 
 void PSSPSIntegrator::Render(const Scene &scene) {
-	const Startegie strategie = Startegie::every_iteration;
 	std::cout << "Sample Budget : " << sampleBudget << std::endl;
 	std::cout << "Strategie : ";
 	switch (strategie) {
@@ -468,8 +463,19 @@ PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,
         params.FindOneString("lightsamplestrategy", "spatial");
     int sampleBudget = params.FindOneInt("samplebudget", 4);
     std::cout << params.FindOneInt("xresolution", 4) << std::endl;
+
+    std::string s_strategie = params.FindOneString("strategie", "variance");
+    Strategie strategie;
+	if (s_strategie == "every_iteration") {
+    	strategie = every_iteration;
+    } else if (s_strategie == "sum_iteration") {
+    	strategie = sum_iteration;
+    } else {
+    	strategie = variance;
+    }
+
     return new PSSPSIntegrator(maxDepth, camera, sampler, pixelBounds,
-                              rrThreshold, lightStrategy, sampleBudget);
+                              rrThreshold, lightStrategy, sampleBudget, strategie);
 }
 
 }  // namespace pbrt

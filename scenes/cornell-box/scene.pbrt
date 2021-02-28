@@ -11,13 +11,15 @@
 #    "bool NEE" "true"
 
 Integrator "pssps"
-	"integer samplebudget" 64
+	"integer samplebudget" 63
+	"string strategie" "variance"
 
-Sampler "neural"
+Sampler "random"
+    "integer pixelsamples" 63
 
 Transform [ 1 -0 -0 -0 -0 1 -0 -0 -0 -0 -1 -0 -0 -1 6.8 1]
 
-Film "image" "integer xresolution" [ 128 ] "integer yresolution" [ 128 ] "string filename" [ "cornell-box.png" ]
+Film "image" "integer xresolution" [ 256 ] "integer yresolution" [ 256 ] "string filename" [ "cornell-box.png" ]
 Camera "perspective" "float fov" [ 19.500000 ] 
 WorldBegin
 	MakeNamedMaterial "LeftWall" "string type" [ "matte" ] "rgb Kd" [ 0.630000 0.065000 0.050000 ] 

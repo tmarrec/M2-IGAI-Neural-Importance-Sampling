@@ -49,6 +49,12 @@
 
 namespace pbrt {
 
+typedef enum {
+	variance,
+	every_iteration,
+	sum_iteration
+} Strategie;
+
 // PSSPSIntegrator Declarations
 class PSSPSIntegrator : public Integrator {
   public:
@@ -57,7 +63,8 @@ class PSSPSIntegrator : public Integrator {
                    std::shared_ptr<Sampler> sampler,
                    const Bounds2i &pixelBounds, Float rrThreshold = 1,
                    const std::string &lightSampleStrategy = "spatial",
-                   int sampleBudget = 4);
+                   int sampleBudget = 4,
+                   Strategie strategie = Strategie::variance);
     void Render(const Scene &scene) override;
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
                 Sampler &sampler, MemoryArena &arena, int sampleOffset) const;
@@ -72,7 +79,9 @@ class PSSPSIntegrator : public Integrator {
     const std::string lightSampleStrategy;
     std::unique_ptr<LightDistribution> lightDistribution;
 
-	std::shared_ptr<const Camera> camera;
+
+    const Strategie strategie;
+    std::shared_ptr<const Camera> camera;
 	std::shared_ptr<Sampler> sampler;
 	const Bounds2i pixelBounds;
 	// Neural network
@@ -83,6 +92,8 @@ class PSSPSIntegrator : public Integrator {
 	std::vector<std::vector<float>> paths;
 	std::vector<float> probas;
 };
+
+
 
 PSSPSIntegrator *CreatePSSPSIntegrator(const ParamSet &params,
                                      std::shared_ptr<Sampler> sampler,
